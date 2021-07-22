@@ -15,16 +15,20 @@ pip3 install aws-parallelcluster -U --user
 如果ParallelCluster安装在一台EC2上，只需要给EC2挂载IAM Role即可。
 IAM Role需要具备相关的权限，使得ParallelCluster可以调度AWS上的计算资源。
 具体权限可以参考下面的链接：
+
 https://docs.aws.amazon.com/zh_cn/parallelcluster/latest/ug/iam.html#parallelclusteruserpolicy
+
 为了测试方便，在下面环境中将使用AdministratorAccess权限（仅限测试环境使用，生产环境需要保持最小权限原则）。
 
 如果不在EC2上安装ParallelCluster，例如在本地笔记本电脑上进行安装，则需要配置AWS AKSK，可以参考下面的链接：
+
 https://docs.aws.amazon.com/zh_cn/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-config
 
 ### 准备ParallelCluster配置文件
 
 配置文件示例见config.ini文件。
 对于需要GPU进行模型训练的场景，我们需要使用自定义AMI，自定义AMI可以通过下面链接查询AMI ID。
+
 https://github.com/aws/aws-parallelcluster/blob/v2.11.0/amis.txt
 
 ### 创建集群
@@ -66,7 +70,9 @@ sudo chmod +x cuda_10.0.130_410.48_linux
 
 tensorflow依赖的libcudnn库文件，默认不会安装，需要手动下载进行安装。
 访问下面链接进行下载，如果没有Nvidia账号，需要自行注册：
+
 https://developer.nvidia.com/rdp/cudnn-archive
+
 在页面里点击该库的7版本中最新的小版本
 Download cuDNN v7.6.5 (November 18th, 2019), for CUDA 10.2
 点击cuDNN Runtime Library for Ubuntu18.04 (Deb)进行下载。
