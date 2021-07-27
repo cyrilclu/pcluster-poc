@@ -36,13 +36,19 @@ class RandomDataset(Dataset):
     def __len__(self):
         return self.len
 
+def reduce_loss(loss,world_size):
+    with torch.no_grad():
+        dist.all_reduce(loss)
+        loss /= world_size
+        return loss.item()
+
 
 def train(data,model):
 
     lr = 0.007
     decay_rate = 0.995
     batch_size = 256
-    max_iter = 1000
+    max_iter = 1600
     train_mode = True
 
     rank = int(os.environ['RANK'])
@@ -76,6 +82,15 @@ def train(data,model):
         os.mkdir(model_path)
     if not os.path.exists(para_path):
         os.mkdir(para_path)
+ 
+    #adata_index_set = np.arange(len(data))
+    dataset = RandomDataset(data)
+    train_sampler = DistributedSampler(dataset)
+    #train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, batch_size, drop_last=True)
+    rand_loader = DataLoader(dataset=dataset,
+             #batch_sampler=train_batch_sampler,
+             sampler = train_sampler,
+             batch_size = batch_size)
    
     loss_ = []
     if train_mode:
@@ -85,15 +100,7 @@ def train(data,model):
                 #print("Local Rank: {}, Epoch: {}, Training ...".format(local_rank, i_iter))
                 pbar.update(1)
                 loss_average, k = 0, 0
-                #adata_index_set = np.arange(len(data))
-                dataset = RandomDataset(data)
-                train_sampler = DistributedSampler(dataset)
-                #train_batch_sampler = torch.utils.data.BatchSampler(train_sampler, batch_size, drop_last=True)
-                rand_loader = DataLoader(dataset=dataset,
-                         #batch_sampler=train_batch_sampler,
-                         sampler = train_sampler,
-                         batch_size = batch_size)
-
+                train_sampler.set_epoch(i_iter)
                 #while len(adata_index_set):
                 #    batch_index = np.random.choice(adata_index_set, batch_size)
                 #    adata_index_set = list(set(adata_index_set) - set(batch_index))
@@ -121,10 +128,6 @@ def train(data,model):
     torch.cuda.synchronize(device)
     end = time.time()
     print(end-start)
-    with open('/shared/loss_file.txt', 'w') as f:
+    with open('/shared/loss_file_ep2000_lr7-3.txt', 'w') as f:
             for item in loss_:f.write("%s\n" % item)
     
-
-
-
-
