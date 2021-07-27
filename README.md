@@ -124,3 +124,13 @@ mkdir -p uc2
 ```
 sbatch uc2.sbatch
 ```
+
+### 运行测试用例二(多机多核)
+
+将测试用例二的源代码解压在uc2这个目录。
+使用新的test_main.py/test_train.py;
+job.slurm中默认为6机8核.
+执行任务：
+```
+sbatch job.slurm
+```
