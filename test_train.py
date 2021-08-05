@@ -24,7 +24,6 @@ import torch.distributed as dist
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-
 class RandomDataset(Dataset):
     def __init__(self, data):
         self.len = len(data)
@@ -48,7 +47,7 @@ def train(data,model):
     lr = 0.007
     decay_rate = 0.995
     batch_size = 256
-    max_iter = 1600
+    max_iter = 1000
     train_mode = True
 
     rank = int(os.environ['RANK'])
@@ -62,19 +61,20 @@ def train(data,model):
 
     torch.cuda.set_device(local_rank)
 
-    #torch.cuda.synchronize()
+    torch.cuda.synchronize()
     start = time.time()
     #model = nn.DataParallel(model)
     #model = model.cuda()
     model = model.cuda(device_ids[0])
     model = torch.nn.parallel.DistributedDataParallel(model,device_ids)
     
+    '''
     for param in model.parameters():
         if param.dim() > 1:
             nn.init.xavier_uniform_(param)
-    
+    '''
     optimizer = optim.RMSprop(model.parameters(), lr=lr)
-    lambda_epoch = lambda i_iter: world_size*lr * (decay_rate ** i_iter)
+    lambda_epoch = lambda i_iter: world_size * lr * (decay_rate ** i_iter)
     scheduler = optim.lr_scheduler.LambdaLR( optimizer, lr_lambda=lambda_epoch)
     model_path = '/home/ubuntu/uc2/science/CloudTest/model'
     para_path = '/home/ubuntu/uc2/science/CloudTest/para'
@@ -100,7 +100,7 @@ def train(data,model):
                 #print("Local Rank: {}, Epoch: {}, Training ...".format(local_rank, i_iter))
                 pbar.update(1)
                 loss_average, k = 0, 0
-                train_sampler.set_epoch(i_iter)
+                train_sampler.set_epoch(i_iter+1)
                 #while len(adata_index_set):
                 #    batch_index = np.random.choice(adata_index_set, batch_size)
                 #    adata_index_set = list(set(adata_index_set) - set(batch_index))
@@ -109,25 +109,28 @@ def train(data,model):
                     recon_adata, latent_space = model(input_adata)
                     loss = F.mse_loss(recon_adata, input_adata)
                     k += 1
-                    loss_average += loss.item()
+                    loss_average += reduce_loss(loss,world_size)
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
 
                 scheduler.step()
-                loss_.append(loss_average/k)
-                if i_iter % 5 == 0 and i_iter:
+                if rank == 0:
+                    loss_.append(loss_average/k)
+                #if i_iter % 5 == 0 and i_iter:
                     #print(i_iter)
                     # model_ = torch.nn.DataParallel(model)
                     # model_ = model_.module()
                     #print(model)
-                    torch.save(model.module.state_dict(), os.path.join(model_path,"model_{}.pt".format(str(i_iter))))
-                    torch.save(model.module.encoder_layers.state_dict(), os.path.join(para_path,"para_{}.pt".format(str(i_iter))))
+                    #torch.save(model.module.state_dict(), os.path.join(model_path,"model_{}.pt".format(str(i_iter))))
+                    #torch.save(model.module.encoder_layers.state_dict(), os.path.join(para_path,"para_{}.pt".format(str(i_iter))))
+
 
     model.eval()
     torch.cuda.synchronize(device)
     end = time.time()
-    print(end-start)
-    with open('/shared/loss_file_ep2000_lr7-3.txt', 'w') as f:
-            for item in loss_:f.write("%s\n" % item)
+    if rank == 0:
+        print(end-start)
+        with open('/shared/loss_file_0805.txt', 'w') as f:
+                for item in loss_:f.write("%s\n" % item)
     
